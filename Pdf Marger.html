@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Merger - কোয়ালিটি ঠিক রেখে পিডিএফ মার্চ করুন</title>
+    <script src="https://unpkg.com/pdf-lib/dist/pdf-lib.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            width: 400px;
+            text-align: center;
+        }
+        h2 { color: #333; margin-bottom: 20px; }
+        input[type="file"] {
+            margin-bottom: 20px;
+            width: 100%;
+        }
+        button {
+            background-color: #2ecc71;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: 0.3s;
+        }
+        button:hover { background-color: #27ae60; }
+        button:disabled { background-color: #bdc3c7; cursor: not-allowed; }
+        #status { margin-top: 15px; color: #555; font-size: 14px; }
+        .file-list {
+            text-align: left;
+            margin: 15px 0;
+            font-size: 13px;
+            max-height: 150px;
+            overflow-y: auto;
+            border: 1px solid #eee;
+            padding: 5px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>PDF Merger</h2>
+    <p>একাধিক পিডিএফ ফাইল সিলেক্ট করুন</p>
+    
+    <input type="file" id="fileInput" accept="application/pdf" multiple>
+    <div id="fileListName" class="file-list">ফাইল সিলেক্ট করা হয়নি</div>
+    
+    <button id="mergeBtn" onclick="mergePDFs()">পিডিএফ মার্চ করুন</button>
+    
+    <div id="status"></div>
+</div>
+
+<script>
+    const fileInput = document.getElementById('fileInput');
+    const fileListName = document.getElementById('fileListName');
+    const status = document.getElementById('status');
+    const mergeBtn = document.getElementById('mergeBtn');
+
+    // ফাইল সিলেক্ট করলে লিস্ট দেখাবে
+    fileInput.addEventListener('change', () => {
+        const files = fileInput.files;
+        if (files.length > 0) {
+            fileListName.innerHTML = "<strong>সিলেক্ট করা ফাইল:</strong><br>";
+            for (let i = 0; i < files.length; i++) {
+                fileListName.innerHTML += (i + 1) + ". " + files[i].name + "<br>";
+            }
+        } else {
+            fileListName.innerHTML = "ফাইল সিলেক্ট করা হয়নি";
+        }
+    });
+
+    async function mergePDFs() {
+        const files = fileInput.files;
+        if (files.length < 2) {
+            alert('অনুগ্রহ করে কমপক্ষে ২টি পিডিএফ ফাইল সিলেক্ট করুন।');
+            return;
+        }
+
+        mergeBtn.disabled = true;
+        status.innerText = "প্রসেসিং হচ্ছে... দয়া করে অপেক্ষা করুন।";
+
+        try {
+            const mergedPdf = await PDFLib.PDFDocument.create();
+            
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const arrayBuffer = await file.arrayBuffer();
+                const pdf = await PDFLib.PDFDocument.load(arrayBuffer);
+                const copiedPages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
+                copiedPages.forEach((page) => mergedPdf.addPage(page));
+            }
+
+            const mergedPdfBytes = await mergedPdf.save();
+            download(mergedPdfBytes, "merged_document.pdf", "application/pdf");
+
+            status.innerText = "সফলভাবে মার্চ করা হয়েছে!";
+            status.style.color = "green";
+        } catch (error) {
+            console.error(error);
+            status.innerText = "দুঃখিত, কোনো সমস্যা হয়েছে।";
+            status.style.color = "red";
+        } finally {
+            mergeBtn.disabled = false;
+        }
+    }
+
+    // ডাউনলোড করার ফাংশন
+    function download(data, filename, type) {
+        const file = new Blob([data], { type: type });
+        const a = document.createElement("a");
+        const url = URL.createObjectURL(file);
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        }, 0);
+    }
+</script>
+
+</body>
+</html>
